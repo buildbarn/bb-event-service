@@ -1,3 +1,5 @@
+load("@com_github_buildbarn_bb_storage//tools:container.bzl", "container_push_official")
+load("@io_bazel_rules_docker//container:container.bzl", "container_image")
 load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
 
 go_library(
@@ -6,11 +8,21 @@ go_library(
     importpath = "github.com/buildbarn/bb-event-service/cmd/bb_event_logger",
     visibility = ["//visibility:private"],
     deps = [
+        "@com_github_bazelbuild_bazel//src/main/java/com/google/devtools/build/lib/buildeventstream/proto:go_default_library",
+        "@com_github_bazelbuild_remote_apis//build/bazel/remote/execution/v2:go_default_library",
+        "@com_github_buildbarn_bb_storage//pkg/blobstore:go_default_library",
+        "@com_github_buildbarn_bb_storage//pkg/blobstore/configuration:go_default_library",
+        "@com_github_buildbarn_bb_storage//pkg/util:go_default_library",
+        "@com_github_golang_protobuf//proto:go_default_library",
+        "@com_github_golang_protobuf//ptypes:go_default_library_gen",
         "@com_github_grpc_ecosystem_go_grpc_prometheus//:go_default_library",
+        "@com_github_matttproud_golang_protobuf_extensions//pbutil:go_default_library",
         "@com_github_prometheus_client_golang//prometheus/promhttp:go_default_library",
         "@go_googleapis//google/devtools/build/v1:build_go_proto",
         "@io_bazel_rules_go//proto/wkt:empty_go_proto",
         "@org_golang_google_grpc//:go_default_library",
+        "@org_golang_google_grpc//codes:go_default_library",
+        "@org_golang_google_grpc//status:go_default_library",
     ],
 )
 
@@ -19,4 +31,17 @@ go_binary(
     embed = [":go_default_library"],
     pure = "on",
     visibility = ["//visibility:public"],
+)
+
+container_image(
+    name = "bb_event_logger_container",
+    entrypoint = ["/bb_event_logger"],
+    files = [":bb_event_logger"],
+    visibility = ["//visibility:public"],
+)
+
+container_push_official(
+    name = "bb_event_logger_container_push",
+    component = "bb-event-logger",
+    image = ":bb_event_logger_container",
 )
