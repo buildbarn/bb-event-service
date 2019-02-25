@@ -16,6 +16,7 @@ import (
 
 	buildeventstream "github.com/bazelbuild/bazel/src/main/java/com/google/devtools/build/lib/buildeventstream/proto"
 	remoteexecution "github.com/bazelbuild/remote-apis/build/bazel/remote/execution/v2"
+	"github.com/buildbarn/bb-storage/pkg/ac"
 	"github.com/buildbarn/bb-storage/pkg/blobstore"
 	"github.com/buildbarn/bb-storage/pkg/blobstore/configuration"
 	"github.com/buildbarn/bb-storage/pkg/util"
@@ -38,8 +39,9 @@ type streamState struct {
 }
 
 type buildEventServer struct {
-	contentAddressableStorage blobstore.BlobAccess
 	instanceName              string
+	contentAddressableStorage blobstore.BlobAccess
+	actionCache               ac.ActionCache
 
 	lock    sync.Mutex
 	streams map[string]*streamState
@@ -54,7 +56,8 @@ func (bes *buildEventServer) processBuildToolEvent(ctx context.Context, in *buil
 	bes.lock.Lock()
 	defer bes.lock.Unlock()
 
-	key := proto.MarshalTextString(in.OrderedBuildEvent.StreamId)
+	streamID := in.OrderedBuildEvent.StreamId
+	key := proto.MarshalTextString(streamID)
 	state, ok := bes.streams[key]
 	if ok {
 		if in.OrderedBuildEvent.SequenceNumber < state.committedSequences+1 {
@@ -81,24 +84,46 @@ func (bes *buildEventServer) processBuildToolEvent(ctx context.Context, in *buil
 	switch buildEvent := in.OrderedBuildEvent.Event.Event.(type) {
 	case *build.BuildEvent_ComponentStreamFinished:
 		log.Print("BuildTool: ComponentStreamFinished: ", buildEvent.ComponentStreamFinished)
-		data := state.bazelBuildEvents.Bytes()
-		hash := sha256.Sum256(data)
-		digest, err := util.NewDigest(bes.instanceName, &remoteexecution.Digest{
-			Hash:      hex.EncodeToString(hash[:]),
-			SizeBytes: int64(len(data)),
+
+		// Convert the invocation ID to a digest, so that we can
+		// create fictive AC entries for this stream.
+		hash := sha256.Sum256([]byte(streamID.InvocationId))
+		actionDigest, err := util.NewDigest(bes.instanceName, &remoteexecution.Digest{
+			Hash: hex.EncodeToString(hash[:]),
 		})
-		log.Printf("Storing log as %s", digest)
 		if err != nil {
 			return nil, err
 		}
+
+		// Write the full stream into the CAS.
+		data := state.bazelBuildEvents.Bytes()
+		digestGenerator := actionDigest.NewDigestGenerator()
+		digestGenerator.Write(data)
+		streamDigest := digestGenerator.Sum()
 		if err := bes.contentAddressableStorage.Put(
-			ctx, digest, digest.GetSizeBytes(),
+			ctx, streamDigest, streamDigest.GetSizeBytes(),
 			ioutil.NopCloser(bytes.NewBuffer(data))); err != nil {
 			return nil, err
 		}
+
+		// Write a fictive entry in the AC, where the full
+		// stream is attached as an output file.
+		if err := bes.actionCache.PutActionResult(
+			ctx,
+			actionDigest,
+			&remoteexecution.ActionResult{
+				OutputFiles: []*remoteexecution.OutputFile{
+					{
+						Path:   "build-event-stream",
+						Digest: streamDigest.GetPartialDigest(),
+					},
+				},
+			}); err != nil {
+			return nil, err
+		}
+
 		delete(bes.streams, key)
 	case *build.BuildEvent_BazelEvent:
-		log.Print("BuildTool: BazelEvent")
 		var bazelBuildEvent buildeventstream.BuildEvent
 		if err := ptypes.UnmarshalAny(buildEvent.BazelEvent, &bazelBuildEvent); err != nil {
 			return nil, err
@@ -146,7 +171,7 @@ func main() {
 	flag.Parse()
 
 	// Storage access.
-	contentAddressableStorage, _, err := configuration.CreateBlobAccessObjectsFromConfig(*blobstoreConfig)
+	contentAddressableStorage, actionCache, err := configuration.CreateBlobAccessObjectsFromConfig(*blobstoreConfig)
 	if err != nil {
 		log.Fatal("Failed to create blob access: ", err)
 	}
@@ -163,8 +188,9 @@ func main() {
 		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
 	)
 	build.RegisterPublishBuildEventServer(s, &buildEventServer{
+		instanceName:              "bb-event-logger",
 		contentAddressableStorage: contentAddressableStorage,
-		instanceName:              "hello",
+		actionCache:               ac.NewBlobAccessActionCache(actionCache),
 
 		streams: map[string]*streamState{},
 	})
