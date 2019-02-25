@@ -5,7 +5,7 @@ load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
 go_library(
     name = "go_default_library",
     srcs = ["main.go"],
-    importpath = "github.com/buildbarn/bb-event-service/cmd/bb_event_logger",
+    importpath = "github.com/buildbarn/bb-event-service/cmd/bb_event_service",
     visibility = ["//visibility:private"],
     deps = [
         "@com_github_bazelbuild_bazel//src/main/java/com/google/devtools/build/lib/buildeventstream/proto:go_default_library",
@@ -28,21 +28,21 @@ go_library(
 )
 
 go_binary(
-    name = "bb_event_logger",
+    name = "bb_event_service",
     embed = [":go_default_library"],
     pure = "on",
     visibility = ["//visibility:public"],
 )
 
 container_image(
-    name = "bb_event_logger_container",
-    entrypoint = ["/bb_event_logger"],
-    files = [":bb_event_logger"],
+    name = "bb_event_service_container",
+    entrypoint = ["/bb_event_service"],
+    files = [":bb_event_service"],
     visibility = ["//visibility:public"],
 )
 
 container_push_official(
-    name = "bb_event_logger_container_push",
-    component = "bb-event-logger",
-    image = ":bb_event_logger_container",
+    name = "bb_event_service_container_push",
+    component = "bb-event-service",
+    image = ":bb_event_service_container",
 )

@@ -188,7 +188,7 @@ func main() {
 		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
 	)
 	build.RegisterPublishBuildEventServer(s, &buildEventServer{
-		instanceName:              "bb-event-logger",
+		instanceName:              "bb-event-service",
 		contentAddressableStorage: contentAddressableStorage,
 		actionCache:               ac.NewBlobAccessActionCache(actionCache),
 
