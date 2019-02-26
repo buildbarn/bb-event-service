@@ -4,7 +4,10 @@ load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
 
 go_library(
     name = "go_default_library",
-    srcs = ["main.go"],
+    srcs = [
+        "build_event_server.go",
+        "main.go",
+    ],
     importpath = "github.com/buildbarn/bb-event-service/cmd/bb_event_service",
     visibility = ["//visibility:private"],
     deps = [
