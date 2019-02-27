@@ -16,10 +16,12 @@ ID (a per-invocation UUID) are stored in the Action Cache (AC).
 
 [Buildbarn Browser](https://github.com/buildbarn/bb-browser) has
 integrated support for displaying build event streams stored in the
-CAS/AC by visiting `/build_events/<instance>/<uuid>/`. For builds that
+CAS/AC by visiting `/build_events/<instance>/<uuid>`. For builds that
 also used remote execution, Buildbarn Browser is capable of linking
 directly to output files of build actions, making it a valuable tool for
-sharing build results with colleagues.
+sharing build results with colleagues. By invoking Bazel with
+`--bes_results_url=...`, it may automatically print URLs pointing to
+Buildbarn Browser at the start of every invocation.
 
 Prebuilt container images of Buildbarn Event Service may be found on
 [Docker Hub](https://hub.docker.com/r/buildbarn/bb-event-service).
