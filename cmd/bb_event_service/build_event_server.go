@@ -135,22 +135,37 @@ func (bes *buildEventServer) processBuildToolEvent(ctx context.Context, in *buil
 }
 
 func (bes *buildEventServer) PublishBuildToolEventStream(stream build.PublishBuildEvent_PublishBuildToolEventStreamServer) error {
-	for {
-		in, err := stream.Recv()
-		if err == io.EOF {
-			return nil
-		} else if err != nil {
-			log.Print(err)
-			return err
+	responseStream := make(chan *build.PublishBuildToolEventStreamResponse, 100)
+	requestError := make(chan error, 1)
+
+	// Handle incoming requests.
+	go func() {
+		defer close(responseStream)
+		for {
+			in, err := stream.Recv()
+			if err == io.EOF {
+				requestError <- nil
+				return
+			}
+			if err != nil {
+				requestError <- err
+				return
+			}
+			response, err := bes.processBuildToolEvent(stream.Context(), in)
+			if err != nil {
+				requestError <- err
+				return
+			}
+			responseStream <- response
 		}
-		response, err := bes.processBuildToolEvent(stream.Context(), in)
-		if err != nil {
-			log.Print(err)
-			return err
-		}
+	}()
+
+	// Stream responses back to the client asynchronously to reduce
+	// round-trips.
+	for response := range responseStream {
 		if err := stream.Send(response); err != nil {
-			log.Print(err)
 			return err
 		}
 	}
+	return <-requestError
 }
