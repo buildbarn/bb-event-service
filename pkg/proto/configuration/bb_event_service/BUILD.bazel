@@ -1,0 +1,32 @@
+# gazelle:ignore
+
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
+
+proto_library(
+    name = "bb_event_service_proto",
+    srcs = ["bb_event_service.proto"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_buildbarn_bb_storage//pkg/proto/configuration/bb_storage:bb_storage_proto",
+        "@com_github_buildbarn_bb_storage//pkg/proto/configuration/blobstore:blobstore_proto",
+    ],
+)
+
+go_proto_library(
+    name = "bb_event_service_go_proto",
+    importpath = "github.com/buildbarn/bb-event-service/pkg/proto/configuration/bb_event_service",
+    proto = ":bb_event_service_proto",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_buildbarn_bb_storage//pkg/proto/configuration/bb_storage:go_default_library",
+        "@com_github_buildbarn_bb_storage//pkg/proto/configuration/blobstore:go_default_library",
+    ],
+)
+
+go_library(
+    name = "go_default_library",
+    embed = [":bb_event_service_go_proto"],
+    importpath = "github.com/buildbarn/bb-event-service/pkg/proto/configuration/bb_event_service",
+    visibility = ["//visibility:public"],
+)
