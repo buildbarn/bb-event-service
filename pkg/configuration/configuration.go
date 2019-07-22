@@ -1,24 +1,19 @@
 package configuration
 
 import (
-	"os"
-
 	pb "github.com/buildbarn/bb-event-service/pkg/proto/configuration/bb_event_service"
-	"github.com/golang/protobuf/jsonpb"
+	"github.com/buildbarn/bb-storage/pkg/util"
 )
 
-// GetEventServiceConfiguration reads the configuration from file and fill in default values.
+// GetEventServiceConfiguration reads the jsonnet configuration from file,
+// renders it, and fills in default values.
 func GetEventServiceConfiguration(path string) (*pb.EventServiceConfiguration, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
 	var eventServiceConfiguration pb.EventServiceConfiguration
-	if err := jsonpb.Unmarshal(file, &eventServiceConfiguration); err != nil {
-		return nil, err
+	if err := util.UnmarshalConfigurationFromFile(path, &eventServiceConfiguration); err != nil {
+		return nil, util.StatusWrap(err, "Failed to retrieve configuration")
 	}
 	setDefaultEventServiceValues(&eventServiceConfiguration)
-	return &eventServiceConfiguration, err
+	return &eventServiceConfiguration, nil
 }
 
 func setDefaultEventServiceValues(eventServiceConfiguration *pb.EventServiceConfiguration) {
