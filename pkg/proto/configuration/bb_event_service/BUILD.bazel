@@ -8,8 +8,8 @@ proto_library(
     srcs = ["bb_event_service.proto"],
     visibility = ["//visibility:public"],
     deps = [
-        "@com_github_buildbarn_bb_storage//pkg/proto/configuration/bb_storage:bb_storage_proto",
         "@com_github_buildbarn_bb_storage//pkg/proto/configuration/blobstore:blobstore_proto",
+        "@com_github_buildbarn_bb_storage//pkg/proto/configuration/grpc:grpc_proto",
     ],
 )
 
@@ -19,8 +19,8 @@ go_proto_library(
     proto = ":bb_event_service_proto",
     visibility = ["//visibility:public"],
     deps = [
-        "@com_github_buildbarn_bb_storage//pkg/proto/configuration/bb_storage:go_default_library",
         "@com_github_buildbarn_bb_storage//pkg/proto/configuration/blobstore:go_default_library",
+        "@com_github_buildbarn_bb_storage//pkg/proto/configuration/grpc:go_default_library",
     ],
 )
 
