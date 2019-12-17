@@ -8,7 +8,6 @@ import (
 	"os"
 
 	"github.com/buildbarn/bb-event-service/pkg/configuration"
-	"github.com/buildbarn/bb-storage/pkg/ac"
 	blobstore "github.com/buildbarn/bb-storage/pkg/blobstore/configuration"
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -28,7 +27,9 @@ func main() {
 	}
 
 	// Storage access.
-	contentAddressableStorage, actionCache, err := blobstore.CreateBlobAccessObjectsFromConfig(eventServiceConfiguration.Blobstore)
+	contentAddressableStorage, actionCache, err := blobstore.CreateBlobAccessObjectsFromConfig(
+		eventServiceConfiguration.Blobstore,
+		int(eventServiceConfiguration.MaximumMessageSizeBytes))
 	if err != nil {
 		log.Fatal("Failed to create blob access: ", err)
 	}
@@ -47,7 +48,7 @@ func main() {
 	build.RegisterPublishBuildEventServer(s, &buildEventServer{
 		instanceName:              "bb-event-service",
 		contentAddressableStorage: contentAddressableStorage,
-		actionCache:               ac.NewBlobAccessActionCache(actionCache),
+		actionCache:               actionCache,
 
 		streams: map[string]*streamState{},
 	})

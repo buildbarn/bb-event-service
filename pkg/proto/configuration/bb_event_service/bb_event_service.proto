@@ -16,4 +16,7 @@ message EventServiceConfiguration {
 
   // Address on which to listen for RPCs. Defaults to ":8983".
   string grpc_listen_address = 3;
+
+  // Maximum Protobuf message size to unmarshal.
+  int64 maximum_message_size_bytes = 4;
 }
