@@ -6,14 +6,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
-	"io/ioutil"
 	"log"
 	"sync"
 
 	buildeventstream "github.com/bazelbuild/bazel/src/main/java/com/google/devtools/build/lib/buildeventstream/proto"
 	remoteexecution "github.com/bazelbuild/remote-apis/build/bazel/remote/execution/v2"
-	"github.com/buildbarn/bb-storage/pkg/ac"
 	"github.com/buildbarn/bb-storage/pkg/blobstore"
+	"github.com/buildbarn/bb-storage/pkg/blobstore/buffer"
 	"github.com/buildbarn/bb-storage/pkg/util"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
@@ -33,7 +32,7 @@ type streamState struct {
 type buildEventServer struct {
 	instanceName              string
 	contentAddressableStorage blobstore.BlobAccess
-	actionCache               ac.ActionCache
+	actionCache               blobstore.BlobAccess
 
 	lock    sync.Mutex
 	streams map[string]*streamState
@@ -93,24 +92,26 @@ func (bes *buildEventServer) processBuildToolEvent(ctx context.Context, in *buil
 		digestGenerator.Write(data)
 		streamDigest := digestGenerator.Sum()
 		if err := bes.contentAddressableStorage.Put(
-			ctx, streamDigest, streamDigest.GetSizeBytes(),
-			ioutil.NopCloser(bytes.NewBuffer(data))); err != nil {
+			ctx, streamDigest,
+			buffer.NewValidatedBufferFromByteSlice(data)); err != nil {
 			return nil, err
 		}
 
 		// Write a fictive entry in the AC, where the full
 		// stream is attached as an output file.
-		if err := bes.actionCache.PutActionResult(
+		if err := bes.actionCache.Put(
 			ctx,
 			actionDigest,
-			&remoteexecution.ActionResult{
-				OutputFiles: []*remoteexecution.OutputFile{
-					{
-						Path:   "build-event-stream",
-						Digest: streamDigest.GetPartialDigest(),
+			buffer.NewACBufferFromActionResult(
+				&remoteexecution.ActionResult{
+					OutputFiles: []*remoteexecution.OutputFile{
+						{
+							Path:   "build-event-stream",
+							Digest: streamDigest.GetPartialDigest(),
+						},
 					},
 				},
-			}); err != nil {
+				buffer.Irreparable)); err != nil {
 			return nil, err
 		}
 
