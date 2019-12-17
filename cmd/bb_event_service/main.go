@@ -3,14 +3,13 @@ package main
 import (
 	"log"
 	"net/http"
-	_ "net/http/pprof"
 	"os"
 
 	"github.com/buildbarn/bb-event-service/pkg/proto/configuration/bb_event_service"
 	blobstore "github.com/buildbarn/bb-storage/pkg/blobstore/configuration"
 	bb_grpc "github.com/buildbarn/bb-storage/pkg/grpc"
 	"github.com/buildbarn/bb-storage/pkg/util"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/gorilla/mux"
 	build "google.golang.org/genproto/googleapis/devtools/build/v1"
 
 	"google.golang.org/grpc"
@@ -50,6 +49,7 @@ func main() {
 	}()
 
 	// Web server for metrics and profiling.
-	http.Handle("/metrics", promhttp.Handler())
-	log.Fatal(http.ListenAndServe(configuration.MetricsListenAddress, nil))
+	router := mux.NewRouter()
+	util.RegisterAdministrativeHTTPEndpoints(router)
+	log.Fatal(http.ListenAndServe(configuration.HttpListenAddress, router))
 }
