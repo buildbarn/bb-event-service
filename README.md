@@ -1,3 +1,10 @@
+# NOTICE: This project has been archived!
+
+As discussed in [bb-browser#21](https://github.com/buildbarn/bb-browser/issues/21),
+support for Build Event Streams is going to be removed from Buildbarn.
+We invite people in the community to build a more complete solution for
+ingesting and displaying Build Event Streams!
+
 # Buildbarn Event Service [![Build status](https://badge.buildkite.com/0c488b2f6dc0f10dc8736412d49997b17e2dcb92bc59846a40.svg)](https://buildkite.com/buildbarn/bb-event-service)
 
 Buildbarn Event Service is an implementation of
